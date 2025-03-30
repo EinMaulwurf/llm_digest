@@ -4,35 +4,93 @@ import argparse
 import subprocess
 import sys
 from pathlib import Path
-from typing import List, TextIO, Optional # Added for type hints
+from typing import List, TextIO, Optional, Callable # Added Callable for type hints
 
 # Define common text file extensions
 DEFAULT_EXTENSIONS = ['.txt', '.md', '.py', '.js', '.html', '.css', '.tex', '.rst', '.json', '.yaml', '.yml', '.xml', '.sh', '.bash']
 SEPARATOR = "=" * 80  # Noticeable break line
 
-def find_text_files(directory: Path, extensions: List[str]) -> List[Path]:
+def get_sort_key_function(sort_by: str) -> Callable[[Path], any]:
+    """Gets the appropriate key function for sorting Path objects."""
+    if sort_by == 'ctime':
+        # Creation time (or metadata change time on Linux)
+        print("Sorting by creation time (st_ctime).")
+        return lambda p: p.stat().st_ctime
+    elif sort_by == 'mtime':
+        # Last modification time
+        print("Sorting by modification time (st_mtime).")
+        return lambda p: p.stat().st_mtime
+    elif sort_by == 'name':
+        # Default: sort by full path string
+        print("Sorting by name (full path).")
+        return lambda p: str(p)
+    else:
+        # Fallback, should not happen with argparse choices
+        print(f"Warning: Unknown sort key '{sort_by}'. Defaulting to sort by name.", file=sys.stderr)
+        return lambda p: str(p)
+
+def find_text_files(directory: Path, extensions: List[str], sort_by: str, reverse: bool) -> List[Path]:
     """
     Finds all files within a directory and its subdirectories matching the
-    given extensions, sorted alphabetically by full path.
+    given extensions, sorts them based on the specified criteria.
 
     Args:
         directory: The root directory Path object to search within.
         extensions: A list of lowercase file extensions (e.g., ['.txt', '.md']).
+        sort_by: The key to sort by ('name', 'ctime', 'mtime').
+        reverse: If True, sort in descending order.
 
     Returns:
         A sorted list of Path objects for the found files.
     """
-    found_files = []
+    found_files: List[Path] = []
     print(f"Scanning directory: {directory}")
     print(f"Looking for file extensions: {', '.join(extensions)}")
     for root, _, files in os.walk(directory):
         for filename in files:
+            file_path = Path(root) / filename
             # Check against lowercase filename and extension list
-            if Path(filename).suffix.lower() in extensions:
-                found_files.append(Path(root) / filename)
+            if file_path.suffix.lower() in extensions:
+                # Check if it's actually a file (and not a broken symlink, etc.)
+                # and handle potential permission errors early
+                try:
+                    if file_path.is_file():
+                        # Attempt stat to catch permission errors early for sorting keys
+                        file_path.stat()
+                        found_files.append(file_path)
+                    else:
+                        print(f"Skipping non-file entry: {file_path}", file=sys.stderr)
+                except OSError as e:
+                     print(f"Warning: Could not access or stat file {file_path}, skipping: {e}", file=sys.stderr)
+                except Exception as e: # Catch other potential issues
+                     print(f"Warning: Unexpected error checking file {file_path}, skipping: {e}", file=sys.stderr)
 
-    found_files.sort() # Sort alphabetically by full path
-    print(f"Found {len(found_files)} files to include.")
+
+    print(f"Found {len(found_files)} files matching criteria.")
+
+    if not found_files:
+        return []
+
+    # Get the sorting key function
+    sort_key_func = get_sort_key_function(sort_by)
+
+    # Sort the list
+    try:
+        found_files.sort(key=sort_key_func, reverse=reverse)
+        sort_order = "descending" if reverse else "ascending"
+        print(f"Files sorted by '{sort_by}' ({sort_order}).")
+    except Exception as e:
+        # Catch potential errors during sorting (e.g., stat fails unexpectedly)
+        print(f"Error during sorting: {e}. Files may be in an unsorted order.", file=sys.stderr)
+        # Return the list as is, or maybe sort by name as a fallback?
+        # Let's try sorting by name as a fallback.
+        try:
+            print("Falling back to sorting by name.")
+            found_files.sort(key=lambda p: str(p), reverse=reverse)
+        except Exception as fallback_e:
+             print(f"Fallback sort by name also failed: {fallback_e}", file=sys.stderr)
+
+
     return found_files
 
 def get_tree_output(directory: Path) -> str:
@@ -47,19 +105,24 @@ def get_tree_output(directory: Path) -> str:
         the 'tree' command fails or is not found.
     """
     try:
-        # Run the tree command relative to the target directory
-        # This provides a cleaner output starting from '.'
         tree_process = subprocess.run(
-            ['tree', '.'], # Run tree relative to the target dir
-            cwd=str(directory), # Set the working directory for the command
+            ['tree', '.'],
+            cwd=str(directory),
             capture_output=True,
             text=True,
             encoding='utf-8',
-            check=False # Don't raise exception if tree fails
+            check=False
         )
         if tree_process.returncode == 0:
-            # Prepend the root directory marker for clarity as in the example
-            return f"└── {directory.name}/\n{tree_process.stdout.strip()}"
+            # Using directory.name might be misleading if '.' is passed
+            # Use '.' for relative or the absolute path for clarity
+            display_root = '.' if str(directory) == '.' else str(directory)
+            # Ensure tree output starts correctly relative to display_root
+            tree_lines = tree_process.stdout.strip().split('\n')
+            if tree_lines and tree_lines[0] == '.':
+                 tree_lines = tree_lines[1:] # Remove the redundant '.' line from tree itself
+            return f"{display_root}\n{os.linesep.join(tree_lines)}"
+
         else:
             error_msg = f"[Could not generate tree view. 'tree' command failed.]\n[Error: {tree_process.stderr.strip()}]"
             print(f"Warning: 'tree' command failed. Ensure it's installed ('brew install tree') and works in '{directory}'.", file=sys.stderr)
@@ -87,27 +150,25 @@ def write_file_contents(outfile: TextIO, files: List[Path], base_dir: Path):
     """
     for filepath in files:
         try:
-            # Get path relative to the original target directory for display
             relative_path = filepath.relative_to(base_dir)
-            # Format path similar to user example (leading slash)
-            display_path = f"/{relative_path}"
+            display_path = f"/{relative_path}" # Keep consistent prefix
 
-            outfile.write(f"\n{SEPARATOR}\n")
+            outfile.write(f"{SEPARATOR}\n")
             outfile.write(f"File: {display_path}\n")
-            outfile.write(f"{SEPARATOR}\n\n")
+            outfile.write(f"{SEPARATOR}\n")
 
             try:
-                with open(filepath, 'r', encoding='utf-8') as infile:
+                with open(filepath, 'r', encoding='utf-8', errors='replace') as infile: # Use errors='replace'
                     content = infile.read()
                     outfile.write(content)
-                    # Ensure a newline exists before the next separator
                     if content and not content.endswith('\n'):
                         outfile.write('\n')
                     outfile.write('\n') # Add an extra newline for spacing
 
             except UnicodeDecodeError:
-                outfile.write(f"[Error: Could not decode file {display_path} as UTF-8. Skipping content.]\n\n")
-                print(f"Warning: Could not decode file {filepath} as UTF-8.", file=sys.stderr)
+                # Should be handled by errors='replace' now, but keep as fallback
+                outfile.write(f"[Error: Could not decode file {display_path} as UTF-8. Content might be garbled or replaced.]\n\n")
+                print(f"Warning: Problem decoding file {filepath} as UTF-8.", file=sys.stderr)
             except IOError as e:
                 outfile.write(f"[Error: Could not read file {display_path}: {e}]\n\n")
                 print(f"Warning: Could not read file {filepath}: {e}", file=sys.stderr)
@@ -116,11 +177,10 @@ def write_file_contents(outfile: TextIO, files: List[Path], base_dir: Path):
                  print(f"Warning: An unexpected error occurred reading file {filepath}: {e}", file=sys.stderr)
 
         except Exception as e:
-            # Catch errors related to path manipulation or writing separators
             print(f"Error processing file entry for {filepath}: {e}", file=sys.stderr)
-            # Attempt to continue with the next file
 
-def create_digest(directory: str, output_file: str, extensions: List[str]):
+
+def create_digest(directory: str, output_file: str, extensions: List[str], sort_by: str, reverse: bool):
     """
     Main function to orchestrate the creation of the digest file.
     """
@@ -131,21 +191,14 @@ def create_digest(directory: str, output_file: str, extensions: List[str]):
         print(f"Error: Input directory not found or is not a directory: {target_dir}", file=sys.stderr)
         sys.exit(1)
 
-    # Ensure the output directory exists
     try:
         output_path.parent.mkdir(parents=True, exist_ok=True)
     except OSError as e:
         print(f"Error: Could not create output directory {output_path.parent}: {e}", file=sys.stderr)
         sys.exit(1)
 
-    # 1. Find files
-    found_files = find_text_files(target_dir, extensions)
-
-    # Optional: Check if we should proceed if no files are found
-    # if not found_files:
-    #     print("Warning: No files found matching the specified extensions. Exiting.", file=sys.stderr)
-    #     # Create an empty file or just exit? Let's create a file with just the tree.
-    #     # sys.exit(0) # Or just return
+    # 1. Find and sort files according to parameters
+    found_files = find_text_files(target_dir, extensions, sort_by, reverse)
 
     print(f"Writing digest to: {output_path}")
 
@@ -183,7 +236,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="Concatenate text files from a directory and its subdirectories into a single file, "
                     "prefixed with a directory tree.",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter # Shows defaults in help
     )
     parser.add_argument(
         "directory",
@@ -201,6 +254,19 @@ def main():
         help="List of file extensions to include (case-insensitive). "
              "Example: --extensions .txt .md .py"
     )
+    parser.add_argument(
+        "--sort-by",
+        choices=['name', 'ctime', 'mtime'],
+        default='name',
+        help="Sort files by 'name' (alphanumeric path), 'ctime' (creation/change time), or 'mtime' (modification time)."
+             " Note: 'ctime' behavior can vary between OS (creation on Win/Mac, metadata change on Linux)."
+    )
+    parser.add_argument(
+        "-r", "--reverse",
+        action='store_true', # Makes it a flag, stores True if present
+        default=False,
+        help="Reverse the sort order (e.g., Z-A, newest first)."
+    )
 
     args = parser.parse_args()
 
@@ -208,13 +274,17 @@ def main():
     normalized_extensions = [f".{ext.lstrip('.').lower()}" for ext in args.extensions]
 
     try:
-        create_digest(args.directory, args.output, normalized_extensions)
+        # Pass the sorting arguments to create_digest
+        create_digest(
+            args.directory,
+            args.output,
+            normalized_extensions,
+            args.sort_by,
+            args.reverse # Pass the boolean flag directly
+        )
     except SystemExit:
-        # Catch SystemExit raised by argument parsing errors or explicit exits
-        # and exit cleanly.
         raise
     except Exception as e:
-        # Catch any unexpected errors during the main process
         print(f"Fatal error: An unexpected issue occurred: {e}", file=sys.stderr)
         sys.exit(1)
 
