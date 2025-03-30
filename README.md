@@ -1,7 +1,9 @@
 
-# Directory Digest Creator (`digest.py`)
+# Directory Digest Creator
 
-A Python script that recursively scans a specified directory for text-based files and concatenates their contents into a single output file (a "digest"). It optionally includes a directory tree structure at the beginning for context and allows sorting files by name, creation time, or modification time.
+*For when you need to provide an LLM with context from multiple files.*
+
+A Python script that recursively scans a specified directory for text-based files and concatenates their contents into a single output file (a "digest"). It includes a directory tree structure at the beginning for context and allows sorting files by name, creation time, or modification time.
 
 This project is inspired by [Gitingest](https://github.com/cyclotruc/gitingest/). I needed a functionality to sort the output by filename, which Gitingest does not do. Thats how this project was born.
 
