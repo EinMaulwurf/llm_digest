@@ -138,6 +138,34 @@ def get_tree_output(directory: Path) -> str:
         print(f"Warning: {error_msg}", file=sys.stderr)
         return error_msg
 
+def get_digest_info(extensions: List[str], sort_by: str, reverse: bool) -> str:
+    """
+    Add a line to display infromation on included extensions and sorting.
+
+    Args:
+        extensions: A list of lowercase file extensions (e.g., ['.txt', '.md']).
+        sort_by: The key to sort by ('name', 'ctime', 'mtime').
+        reverse: If True, sort in descending order.
+
+    Returns:
+        A sorted list of Path objects for the found files.
+    """
+    info_text = ""
+    info_text += f"Included extensions: {', '.join(extensions)}\n"
+    if reverse:
+        info_text += f"Output below is sorted in reverse by "
+    else:
+        info_text += f"Output below is sorted by "
+
+    if sort_by == "name":
+        info_text += "filename."
+    elif sort_by == "ctime":
+        info_text += "creation time."
+    elif sort_by == "mtime":
+        info_text += "time last modified."
+
+    return info_text
+
 def write_file_contents(outfile: TextIO, files: List[Path], base_dir: Path):
     """
     Writes the content of each file to the output file, preceded by a
@@ -208,9 +236,14 @@ def create_digest(directory: str, output_file: str, extensions: List[str], sort_
             outfile.write("Directory structure:\n")
             tree_structure = get_tree_output(target_dir)
             outfile.write(tree_structure)
+            outfile.write("\n")
+
+            # 3. Add digest info
+            digest_info = get_digest_info(extensions, sort_by, reverse)
+            outfile.write(digest_info)
             outfile.write("\n\n") # Add space before content
 
-            # 3. Write file contents if any were found
+            # 4. Write file contents if any were found
             if found_files:
                 write_file_contents(outfile, found_files, target_dir)
             else:
