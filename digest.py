@@ -22,6 +22,42 @@ DEFAULT_EXTENSIONS = [
     ".xml",
     ".sh",
     ".bash",
+    # Programming languages
+    ".r", ".rmd", ".qmd",  # R and Quarto files
+    ".java",
+    ".c", ".h", ".cpp", ".hpp", ".cc", ".hh",  # C/C++
+    ".cs",  # C#
+    ".go",
+    ".rs",  # Rust
+    ".swift",
+    ".kt", ".kts",  # Kotlin
+    ".scala",
+    ".pl", ".pm",  # Perl
+    ".rb",  # Ruby
+    ".lua",
+    ".php",
+    # Configuration files
+    ".toml",
+    ".ini",
+    ".cfg",
+    ".conf",
+    # Other text formats
+    ".csv",
+    ".tsv",
+    ".log",
+    # Web-related
+    ".vue",
+    ".svelte",
+    ".ts", ".tsx",  # TypeScript
+    # Build files
+    ".gradle",
+    ".properties",
+    # Documentation
+    ".adoc",  # AsciiDoc
+    # Scripting
+    ".ps1",  # PowerShell
+    ".zsh",
+    ".fish",
 ]
 SEPARATOR = "=" * 80  # Noticeable break line
 
