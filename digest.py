@@ -54,6 +54,17 @@ DEFAULT_EXTENSIONS = [
     ".properties",
     # Documentation
     ".adoc",  # AsciiDoc
+    # LaTeX/TeX
+    ".tex",  # Main LaTeX files (already present)
+    ".sty",  # Style files
+    ".cls",  # Class files
+    ".bib",  # BibTeX bibliography
+    ".bbl",  # Compiled bibliography
+    ".aux",  # Auxiliary files
+    ".toc",  # Table of contents
+    ".lof",  # List of figures
+    ".lot",  # List of tables
+    ".out",  # Output/auxiliary
     # Scripting
     ".ps1",  # PowerShell
     ".zsh",
