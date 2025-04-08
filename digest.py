@@ -4,7 +4,7 @@ import argparse
 import subprocess
 import sys
 from pathlib import Path
-from typing import List, TextIO, Optional, Callable  # Added Callable for type hints
+from typing import TextIO, Callable
 
 # Define common text file extensions
 DEFAULT_EXTENSIONS = [
@@ -111,8 +111,8 @@ def get_sort_key_function(sort_by: str) -> Callable[[Path], any]:
 
 
 def find_text_files(
-    directory: Path, extensions: List[str], sort_by: str, reverse: bool
-) -> List[Path]:
+    directory: Path, extensions: list[str], sort_by: str, reverse: bool
+) -> list[Path]:
     """
     Finds all files within a directory and its subdirectories matching the
     given extensions, sorts them based on the specified criteria.
@@ -126,7 +126,7 @@ def find_text_files(
     Returns:
         A sorted list of Path objects for the found files.
     """
-    found_files: List[Path] = []
+    found_files: list[Path] = []
     print(f"Scanning directory: {directory}")
     print(f"Looking for file extensions: {', '.join(extensions)}")
     for root, _, files in os.walk(directory):
@@ -240,7 +240,7 @@ def get_tree_output(directory: Path) -> str:
         return error_msg
 
 
-def get_digest_info(extensions: List[str], sort_by: str, reverse: bool) -> str:
+def get_digest_info(extensions: list[str], sort_by: str, reverse: bool) -> str:
     """
     Add a line to display infromation on included extensions and sorting.
 
@@ -269,7 +269,7 @@ def get_digest_info(extensions: List[str], sort_by: str, reverse: bool) -> str:
     return info_text
 
 
-def write_file_contents(outfile: TextIO, files: List[Path], base_dir: Path):
+def write_file_contents(outfile: TextIO, files: list[Path], base_dir: Path):
     """
     Writes the content of each file to the output file, preceded by a
     separator and header.
@@ -324,7 +324,7 @@ def write_file_contents(outfile: TextIO, files: List[Path], base_dir: Path):
 
 
 def create_digest(
-    directory: str, output_file: str, extensions: List[str], sort_by: str, reverse: bool
+    directory: str, output_file: str, extensions: list[str], sort_by: str, reverse: bool
 ):
     """
     Main function to orchestrate the creation of the digest file.
