@@ -23,16 +23,25 @@ DEFAULT_EXTENSIONS = [
     ".sh",
     ".bash",
     # Programming languages
-    ".r", ".rmd", ".qmd",  # R and Quarto files
+    ".r",
+    ".rmd",
+    ".qmd",  # R and Quarto files
     ".java",
-    ".c", ".h", ".cpp", ".hpp", ".cc", ".hh",  # C/C++
+    ".c",
+    ".h",
+    ".cpp",
+    ".hpp",
+    ".cc",
+    ".hh",  # C/C++
     ".cs",  # C#
     ".go",
     ".rs",  # Rust
     ".swift",
-    ".kt", ".kts",  # Kotlin
+    ".kt",
+    ".kts",  # Kotlin
     ".scala",
-    ".pl", ".pm",  # Perl
+    ".pl",
+    ".pm",  # Perl
     ".rb",  # Ruby
     ".lua",
     ".php",
@@ -48,7 +57,8 @@ DEFAULT_EXTENSIONS = [
     # Web-related
     ".vue",
     ".svelte",
-    ".ts", ".tsx",  # TypeScript
+    ".ts",
+    ".tsx",  # TypeScript
     # Build files
     ".gradle",
     ".properties",
@@ -70,6 +80,10 @@ DEFAULT_EXTENSIONS = [
     ".zsh",
     ".fish",
 ]
+
+# Files that should not be included
+NEGATIVE_LIST = ["digest.txt", ".env"]
+
 SEPARATOR = "=" * 80  # Noticeable break line
 
 
@@ -126,6 +140,11 @@ def find_text_files(
                     if file_path.is_file():
                         # Attempt stat to catch permission errors early for sorting keys
                         file_path.stat()
+
+                        # Check if file is on negative list
+                        if filename in NEGATIVE_LIST:
+                            continue
+
                         found_files.append(file_path)
                     else:
                         print(f"Skipping non-file entry: {file_path}", file=sys.stderr)
@@ -183,7 +202,7 @@ def get_tree_output(directory: Path) -> str:
     """
     try:
         tree_process = subprocess.run(
-            ["tree", "."],
+            ["tree", "-a", "."],
             cwd=str(directory),
             capture_output=True,
             text=True,
